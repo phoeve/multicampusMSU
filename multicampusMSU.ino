@@ -2,6 +2,7 @@
 #include <SPI.h>
 #include <Ethernet.h>
 
+//  You can turn console messages off to improve performance
 #define CONSOLE 1
 
 struct route
@@ -30,7 +31,8 @@ struct route
                       { 14,  39,  27, 112,  26, 172,17,3,161, 3811 },
                       { 15,  40,  27, 112,  26, 172,17,3,161, 3811 },
                       { 20,  42,  27, 112,  26, 172,17,3,161, 3811 },
-                      {0,0,0,0,0,0,0,0,0,0}
+                      
+                      {0,0,0,0,0,0,0,0,0,0}   // Table termintor
 
 
 };
@@ -108,7 +110,7 @@ void loop() {
     Serial.print(row);
     Serial.println("");
 
-    if (row == -1)
+    if (row == -1)        // button number out of bounds.
       return;
 
     if (Buttons[row].ultirxIn){           // SWP-08 only if if row has info
@@ -141,12 +143,10 @@ boolean sendLRCPacket(IPAddress ip, unsigned int port, byte src, byte dest){
   char msg[128];
 
   sprintf(msg, "~XPOINT:S${%d};D${%d}\\", src, dest);
-  Serial.print("Sending ...");
-  Serial.print(msg);
-  Serial.print("  ... To ");
-  Serial.print(ip);
-  Serial.print(":");
-  Serial.println(port);
+
+  char str[128];
+  sprintf(str, "Sending ... %s ... To %d.%d.%d.%d:%u\n", msg, ip[0], ip[1], ip[2], ip[3], port);
+  Serial.println(str);
   
   if (client.connect(ip, port)) {
     Serial.println("connected");
@@ -185,17 +185,18 @@ boolean sendSWP08Packet(IPAddress ip, unsigned int port, byte src, byte dest){
   msg[2] = src;                         // source router port nummber
   msg[3] = dest;                        // destination router port number
   msg[4] = 3;                           // byte count
-  msg[5] = msg[1] +msg[2] +msg[3] +msg[4];      // checksum
+  msg[5] = msg[1] +msg[2] +msg[3] +msg[4];  // checksum
   msg[6] = 0x03;                         // ETX
-  
-  Serial.print("Sending ...");
+
+  Serial.print("Sending ... ");
   Serial.print("<STX>");
   for (int i=1; i<6; i++){
     Serial.print((int) msg[i]);
     Serial.print("-");
   }
+  Serial.print(msg[5],BIN);
   Serial.print("<ETX>");
-  Serial.print("  ... To ");
+  Serial.print("... To ");
   Serial.print(ip);
   Serial.print(":");
   Serial.println(port);
