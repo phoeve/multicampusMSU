@@ -15,15 +15,15 @@ struct route
   byte  ultirxIp[4];
   unsigned int  ultirxPort;  
 } Buttons[] = {
-                      {  1,   0,   0,  33,  26, 0, 0 },   // NPCC
-                      {  2,   0,   0,  34,  26, 0, 0 },
-                      {  3,   0,   0,  35,  26, 0, 0 },
-                      {  4,   0,   0,  39,  26, 0, 0 },
-                      {  5,   0,   0,  40,  26, 0, 0 },
+                      {  1,   0,   0,  35,  26, 0, 0 },   // NPCC
+                      {  2,   0,   0,  36,  26, 0, 0 },
+                      {  3,   0,   0,  37,  26, 0, 0 },
+                      {  4,   0,   0,  38,  26, 0, 0 },
+                      {  5,   0,   0,  39,  26, 0, 0 },
                       {  6,   0,   0,  43,  26, 0, 0 },
                       {  7,   0,   0,  44,  26, 0, 0 },
                       {  8,   0,   0,  45,  26, 0, 0 },
-                      { 10,   0,   0,  42,  26, 0, 0 },
+                      { 10,   0,   0,  121,  26, 0, 0 },
 
                       { 11,  33,  27, 112,  26, 172,17,3,161, 3811 },   // BC
                       { 12,  34,  27, 112,  26, 172,17,3,161, 3811 },
@@ -46,14 +46,14 @@ unsigned int platinumPort = 52116;
 
 
 
-#define GPI_PIN_ON    LOW             // If voltage is LOW (grounded), the dip switch is in the ON position. 
+#define GPI_PIN_ON    HIGH             // If voltage is LOW (grounded), the dip switch is in the ON position. 
 #define GPI_LOW_PIN   2
 #define GPI_NUM_PINS  7
 
 // MAC address 
 byte MyMac[] = {0xDE, 0xAD, 0xBE, 0xEF, 0xFE, 0xED};
 
-IPAddress MyIP(192, 168, 33, 166);
+IPAddress MyIP(172, 26, 3, 183);
 
 
 void setup() {
@@ -77,7 +77,7 @@ void setup() {
 
 void loop() {
 
-  static unsigned int last_button = 0;
+  static unsigned int last_button = -1;
   static boolean got_ack = false;
   unsigned int button = 0;
   
@@ -92,26 +92,31 @@ void loop() {
     digitalWrite(pin, HIGH);       // turn on pullup resistor
     
     val = digitalRead(pin);
-    Serial.print(val);
+    //Serial.print(val);
     if (val==GPI_PIN_ON){
       bitSet(button, pin-2);  
     } 
   }
+  button++;
 
-  Serial.print("-------------------------\nbutton=");
-  Serial.print(button);
-  Serial.println("");
 
-  if ((last_button != button) || !got_ack){      // Don't repeat if we received an ack on same request
+//  Serial.print(" ==> ");
+
+  if ((last_button != button)){      // Don't repeat if we received an ack on same request
     int row;
+
+    Serial.print("---------------------------------\nbutton=");
+    Serial.println(button);
     
     row = button2row(button);
-    Serial.print("row=");
-    Serial.print(row);
-    Serial.println("");
+//    Serial.print("row=");
+//    Serial.print(row);
+//    Serial.println("");
 
-    if (row == -1)        // button number out of bounds.
+    if (row == -1){        // button number out of bounds.
+      delay(300);
       return;
+    }
 
     if (Buttons[row].ultirxIn){           // SWP-08 only if if row has info
       got_ack = sendSWP08Packet (Buttons[row].ultirxIp, Buttons[row].ultirxPort, Buttons[row].ultirxIn, Buttons[row].ultirxOut);
@@ -119,6 +124,9 @@ void loop() {
 
     got_ack = sendLRCPacket (platinumIp, platinumPort, Buttons[row].platinumIn, Buttons[row].platinumOut);
   }
+  
+  last_button = button;     // Only send message once.
+  
 }
 
 int button2row(byte button)
@@ -139,36 +147,46 @@ int button2row(byte button)
 
 boolean sendLRCPacket(IPAddress ip, unsigned int port, byte src, byte dest){
 
-  EthernetClient client;
+  static EthernetClient client;
+  static boolean connected = false;
   char msg[128];
 
-  sprintf(msg, "~XPOINT:S${%d};D${%d}\\", src, dest);
+  sprintf(msg, "~XPOINT:D#{%d};S#{%d}\\", dest, src);
 
   char str[128];
   sprintf(str, "Sending ... %s ... To %d.%d.%d.%d:%u\n", msg, ip[0], ip[1], ip[2], ip[3], port);
   Serial.println(str);
-  
-  if (client.connect(ip, port)) {
-    Serial.println("connected");
-    
-    client.println("~XPOINT:S${SAT 1};D${MON 6}\\");
 
-    for (int i=0; i<10; i++){
-      while (client.available()) {
-        char c = client.read();
-        Serial.print(c);
-      }
-      if (false)
-        break;
-      //delay(100);       // wait 0.1 sec
+  if (!connected){
+    if (client.connect(ip, port)) {
+      Serial.println("connected");
+      connected = true;
     }
-    client.stop();
-    return true;
-    
+    else{
+          // if you didn't get a connection to the server:
+      Serial.println("connection failed");
+      return false;
+    }
   }
-    // if you didn't get a connection to the server:
-  Serial.println("connection failed");
-  return false;
+  
+  Serial.print(msg);
+  Serial.print(" - sent ... listening ...");
+
+  client.println(msg);
+
+//    for (int i=0; i<3; i++){
+//      while (client.available()) {
+//        char c = client.read();
+//        Serial.print(c);
+//      }
+////      if (false)
+////        break;
+//      //delay(1000);       // wait 0.1 sec
+//    }
+  //Serial.println(" ...bailing");
+  //client.stop();
+  return true;
+    
 }
 
 #define SWP08_OPEN_FLAG 0xFF
