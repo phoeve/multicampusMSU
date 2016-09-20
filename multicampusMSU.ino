@@ -33,8 +33,6 @@ struct route
                       { 20,  42,  27, 112,  26, 172,17,3,161, 3811 },
                       
                       {0,0,0,0,0,0,0,0,0,0}   // Table termintor
-
-
 };
 
 byte platinumIp[] = {172,26,3,161};
@@ -44,9 +42,7 @@ unsigned int platinumPort = 52116;
 //byte platinumPort = 22;
 
 
-
-
-#define GPI_PIN_ON    HIGH             // If voltage is LOW (grounded), the dip switch is in the ON position. 
+#define GPI_PIN_ON    HIGH             // If voltage is HIGH, the dip switch is in the ON position. 
 #define GPI_LOW_PIN   2
 #define GPI_NUM_PINS  7
 
@@ -196,6 +192,7 @@ boolean sendSWP08Packet(IPAddress ip, unsigned int port, byte src, byte dest){
 
 
   EthernetClient client;
+  static IPAddress connectedIP(0,0,0,0);
   byte msg[128];
 
   msg[0] = 0x02;                        // STX Start of message
@@ -203,7 +200,7 @@ boolean sendSWP08Packet(IPAddress ip, unsigned int port, byte src, byte dest){
   msg[2] = src;                         // source router port nummber
   msg[3] = dest;                        // destination router port number
   msg[4] = 3;                           // byte count
-  msg[5] = msg[1] +msg[2] +msg[3] +msg[4];  // checksum
+  msg[5] = msg[1]+msg[2]+msg[3]+msg[4]; // checksum
   msg[6] = 0x03;                         // ETX
 
   Serial.print("Sending ... ");
@@ -218,29 +215,42 @@ boolean sendSWP08Packet(IPAddress ip, unsigned int port, byte src, byte dest){
   Serial.print(ip);
   Serial.print(":");
   Serial.println(port);
-  
-  if (client.connect(ip, port)) {
-    Serial.println("connected");
-    
-    client.write(msg, 7);
 
-    for (int i=0; i<10; i++){
-      while (client.available()) {
-        char c = client.read();
-        Serial.write(c);
-      }
-      if (false)
-        break;
-      //delay(100);       // wait 0.1 sec
+                // If the ip is different from the previous, stop/connect
+  if (!sameIP(connectedIP, ip)){
+    if (connectedIP[0] != 0)     // Disconnect previous if there is one.
+      client.stop();
+    if (client.connect(ip, port)) {
+      Serial.println("connected");
     }
-    client.stop();
-    return true;
-    
   }
+    
+  client.write(msg, 7);
+
+//    for (int i=0; i<10; i++){
+//      while (client.available()) {
+//        char c = client.read();
+//        Serial.write(c);
+//      }
+//      if (false)
+//        break;
+//      //delay(100);       // wait 0.1 sec
+//    }
+  
+  return true;
+    
     // if you didn't get a connection to the server:
-  Serial.println("connection failed");
-  return false;
+//  Serial.println("connection failed");
+//  return false;
 
 }
 
+boolean sameIP(IPAddress ip1, IPAddress ip2)
+{
+  for (int i=0; i<4; i++)
+    if (ip1[i] != ip2[i])
+      return false;
+
+  return true;
+}
 
