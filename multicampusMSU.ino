@@ -223,6 +223,14 @@ boolean sendSWP08Packet(IPAddress ip, unsigned int port, byte src, byte dest){
     if (client.connect(ip, port)) {
       Serial.println("connected");
     }
+    else{
+          // if you didn't get a connection to the server:
+      Serial.println("connection failed");
+      return false;
+    }
+  }
+  else{
+    Serial.println("sameIP - already connected");
   }
     
   client.write(msg, 7);
