@@ -25,12 +25,12 @@ struct route
                       {  8,   0,   0,  45,  26, 0, 0 },
                       { 10,   0,   0,  121,  26, 0, 0 },
 
-                      { 11,  33,  27, 112,  26, 172,17,3,161, 3811 },   // BC
-                      { 12,  34,  27, 112,  26, 172,17,3,161, 3811 },
-                      { 13,  35,  27, 112,  26, 172,17,3,161, 3811 },
-                      { 14,  39,  27, 112,  26, 172,17,3,161, 3811 },
-                      { 15,  40,  27, 112,  26, 172,17,3,161, 3811 },
-                      { 20,  42,  27, 112,  26, 172,17,3,161, 3811 },
+                      { 11,  33,  27, 112,  26, 172,17,3,134, 3811 },   // BC
+                      { 12,  34,  27, 112,  26, 172,17,3,134, 3811 },
+                      { 13,  35,  27, 112,  26, 172,17,3,134, 3811 },
+                      { 14,  39,  27, 112,  26, 172,17,3,134, 3811 },
+                      { 15,  40,  27, 112,  26, 172,17,3,134, 3811 },
+                      { 20,  42,  27, 112,  26, 172,17,3,134, 3811 },
                       
                       {0,0,0,0,0,0,0,0,0,0}   // Table termintor
 };
@@ -222,6 +222,8 @@ boolean sendSWP08Packet(IPAddress ip, unsigned int port, byte src, byte dest){
       client.stop();
     if (client.connect(ip, port)) {
       Serial.println("connected");
+      for (int i=0; i<4; i++)
+        connectedIP[i] = ip[i];
     }
     else{
           // if you didn't get a connection to the server:
@@ -255,6 +257,10 @@ boolean sendSWP08Packet(IPAddress ip, unsigned int port, byte src, byte dest){
 
 boolean sameIP(IPAddress ip1, IPAddress ip2)
 {
+  Serial.println("sameIP comparing");
+  Serial.print(ip1);
+  Serial.print(ip2);
+  Serial.println("");
   for (int i=0; i<4; i++)
     if (ip1[i] != ip2[i])
       return false;
