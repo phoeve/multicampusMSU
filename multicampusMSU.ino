@@ -164,11 +164,10 @@ boolean sendLRCPacket(IPAddress ip, unsigned int port, byte src, byte dest){
       return false;
     }
   }
-  
-  Serial.print(msg);
-  Serial.print(" - sent ... listening ...");
 
   client.println(msg);
+  Serial.print(msg);
+  Serial.print(" - sent ... listening ...");
 
 //    for (int i=0; i<3; i++){
 //      while (client.available()) {
