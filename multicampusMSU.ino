@@ -7,39 +7,36 @@
 
 struct route
 {
-  byte  button;
-  byte  ultirxIn;
-  byte  ultirxOut;
-  byte  platinumIn;
-  byte  platinumOut;
-  byte  ultirxIp[4];
-  unsigned int  ultirxPort;  
+  byte            button;
+  byte            ultirxIn;
+  byte            ultirxOut;
+  byte            platinumIn;
+  byte            platinumOut;
+  byte            ultirxIp[4];
+  unsigned int    ultirxPort;  
 } Buttons[] = {
-                      {  1,   0,   0,  35,  26, 0, 0 },   // NPCC
-                      {  2,   0,   0,  36,  26, 0, 0 },
-                      {  3,   0,   0,  37,  26, 0, 0 },
-                      {  4,   0,   0,  38,  26, 0, 0 },
-                      {  5,   0,   0,  39,  26, 0, 0 },
+                      {  1,   0,   0,  33,  26, 0, 0 },   // NPCC
+                      {  2,   0,   0,  34,  26, 0, 0 },
+                      {  3,   0,   0,  35,  26, 0, 0 },
+                      {  4,   0,   0,  39,  26, 0, 0 },
+                      {  5,   0,   0,  40,  26, 0, 0 },
                       {  6,   0,   0,  43,  26, 0, 0 },
                       {  7,   0,   0,  44,  26, 0, 0 },
                       {  8,   0,   0,  45,  26, 0, 0 },
-                      { 10,   0,   0,  121,  26, 0, 0 },
+                      { 10,   0,   0,  42,  26, 0, 0 },
 
-                      { 11,  33,  27, 112,  26, 172,17,3,134, 3811 },   // BC
-                      { 12,  34,  27, 112,  26, 172,17,3,134, 3811 },
-                      { 13,  35,  27, 112,  26, 172,17,3,134, 3811 },
-                      { 14,  39,  27, 112,  26, 172,17,3,134, 3811 },
-                      { 15,  40,  27, 112,  26, 172,17,3,134, 3811 },
-                      { 20,  42,  27, 112,  26, 172,17,3,134, 3811 },
+                      { 11,  32,  26, 112,  26, 172,17,3,137, 12345 },   // BC 8910 or 12345
+                      { 12,  33,  26, 112,  26, 172,17,3,137, 12345 },
+                      { 13,  34,  26, 112,  26, 172,17,3,137, 12345 },
+                      { 14,  38,  26, 112,  26, 172,17,3,137, 12345 },
+                      { 15,  39,  26, 112,  26, 172,17,3,137, 12345 },
+                      { 20,  62,  26, 112,  26, 172,17,3,137, 12345 },  // 78 +48 +84 +73 +9 +63 +9 +27 
                       
                       {0,0,0,0,0,0,0,0,0,0}   // Table termintor
 };
 
 byte platinumIp[] = {172,26,3,161};
 unsigned int platinumPort = 52116;
-
-//byte platinumIp[] = {192,168,33,58};
-//byte platinumPort = 22;
 
 
 #define GPI_PIN_ON    HIGH             // If voltage is HIGH, the dip switch is in the ON position. 
@@ -49,16 +46,24 @@ unsigned int platinumPort = 52116;
 // MAC address 
 byte MyMac[] = {0xDE, 0xAD, 0xBE, 0xEF, 0xFE, 0xED};
 
-IPAddress MyIP(172, 26, 3, 183);
 
+
+IPAddress MyIP(172, 16, 3, 183);
+// the dns server ip
+IPAddress dnsServer(10, 16, 16, 10);
+// the router's gateway address:
+IPAddress gateway(172, 16, 1, 254);
+// the subnet:
+IPAddress subnet(255, 255, 0, 0);
 
 void setup() {
   // start the Ethernet connection:
-  Ethernet.begin(MyMac, MyIP);
+  Ethernet.begin(MyMac, MyIP, dnsServer, gateway, subnet);
+
 
 #if CONSOLE
   // Open serial communications and wait for port to open:
-  Serial.begin(9600);
+  Serial.begin(57600);
 
   while (!Serial) {
     ; // wait for serial port to connect. Needed for native USB port only
@@ -95,14 +100,15 @@ void loop() {
   }
   button++;
 
+//button = 20;
 
 //  Serial.print(" ==> ");
 
   if ((last_button != button)){      // Don't repeat if we received an ack on same request
     int row;
 
-    Serial.print("---------------------------------\nbutton=");
-    Serial.println(button);
+//    Serial.print("---------------------------------\nbutton=");
+//    Serial.println(button);
     
     row = button2row(button);
 //    Serial.print("row=");
@@ -114,11 +120,17 @@ void loop() {
       return;
     }
 
+
+
     if (Buttons[row].ultirxIn){           // SWP-08 only if if row has info
-      got_ack = sendSWP08Packet (Buttons[row].ultirxIp, Buttons[row].ultirxPort, Buttons[row].ultirxIn, Buttons[row].ultirxOut);
+      got_ack = send7000Packet (Buttons[row].ultirxIp, Buttons[row].ultirxPort, Buttons[row].ultirxIn, Buttons[row].ultirxOut);
+      //got_ack = sendLRCPacket (Buttons[row].ultirxIp, Buttons[row].ultirxPort, Buttons[row].ultirxIn, Buttons[row].ultirxOut);
+
     }
 
     got_ack = sendLRCPacket (platinumIp, platinumPort, Buttons[row].platinumIn, Buttons[row].platinumOut);
+
+
   }
   
   last_button = button;     // Only send message once.
@@ -146,116 +158,112 @@ boolean sendLRCPacket(IPAddress ip, unsigned int port, byte src, byte dest){
   static EthernetClient client;
   static boolean connected = false;
   char msg[128];
+  int ret= -1;
 
   sprintf(msg, "~XPOINT:D#{%d};S#{%d}\\", dest, src);
 
   char str[128];
-  sprintf(str, "Sending ... %s ... To %d.%d.%d.%d:%u\n", msg, ip[0], ip[1], ip[2], ip[3], port);
+  sprintf(str, "Sending ... %s ... To %d.%d.%d.%d:%u", msg, ip[0], ip[1], ip[2], ip[3], port);
   Serial.println(str);
-
-  if (!connected){
-    if (client.connect(ip, port)) {
-      Serial.println("connected");
+  
+  if (!client.connected()){
+    if ((ret=client.connect(ip, port))) {
+      Serial.println(ret);
+      Serial.println("... connected ...");
       connected = true;
     }
     else{
           // if you didn't get a connection to the server:
-      Serial.println("connection failed");
+      Serial.println("... connection failed.");
       return false;
     }
   }
 
+
   client.println(msg);
-  Serial.print(msg);
-  Serial.print(" - sent ... listening ...");
+  Serial.println(" ... sent.\n\n");
+  //client.stop();
 
 //    for (int i=0; i<3; i++){
 //      while (client.available()) {
 //        char c = client.read();
 //        Serial.print(c);
 //      }
-////      if (false)
-////        break;
-//      //delay(1000);       // wait 0.1 sec
-//    }
-  //Serial.println(" ...bailing");
-  //client.stop();
-  return true;
-    
-}
-
-#define SWP08_OPEN_FLAG 0xFF
-// fixed length and checksum terminated
-
-boolean sendSWP08Packet(IPAddress ip, unsigned int port, byte src, byte dest){
-
-
-  EthernetClient client;
-  static IPAddress connectedIP(0,0,0,0);
-  byte msg[128];
-
-  msg[0] = 0x02;                        // STX Start of message
-  msg[1] = 2;                           // Connect command
-  msg[2] = src;                         // source router port nummber
-  msg[3] = dest;                        // destination router port number
-  msg[4] = 3;                           // byte count
-  msg[5] = msg[1]+msg[2]+msg[3]+msg[4]; // checksum
-  msg[6] = 0x03;                         // ETX
-
-  Serial.print("Sending ... ");
-  Serial.print("<STX>");
-  for (int i=1; i<6; i++){
-    Serial.print((int) msg[i]);
-    Serial.print("-");
-  }
-  Serial.print(msg[5],BIN);
-  Serial.print("<ETX>");
-  Serial.print("... To ");
-  Serial.print(ip);
-  Serial.print(":");
-  Serial.println(port);
-
-                // If the ip is different from the previous, stop/connect
-  if (!sameIP(connectedIP, ip)){
-    if (connectedIP[0] != 0)     // Disconnect previous if there is one.
-      client.stop();
-    if (client.connect(ip, port)) {
-      Serial.println("connected");
-      for (int i=0; i<4; i++)
-        connectedIP[i] = ip[i];
-    }
-    else{
-          // if you didn't get a connection to the server:
-      Serial.println("connection failed");
-      return false;
-    }
-  }
-  else{
-    Serial.println("sameIP - already connected");
-  }
-    
-  client.write(msg, 7);
-
-//    for (int i=0; i<10; i++){
-//      while (client.available()) {
-//        char c = client.read();
-//        Serial.write(c);
-//      }
 //      if (false)
 //        break;
-//      //delay(100);       // wait 0.1 sec
+//      delay(1000);       // wait 0.1 sec
 //    }
-  
+//  Serial.println(" ...bailing");
+//  client.stop();
   return true;
     
-    // if you didn't get a connection to the server:
-//  Serial.println("connection failed");
-//  return false;
-
 }
+
+
+boolean send7000Packet(IPAddress ip, unsigned int port, byte src, byte dest){
+
+
+  static EthernetClient client;
+  static IPAddress connectedIP(0,0,0,0);
+  byte msg[16];
+  char str[128];
+  unsigned int sum=0;
+  unsigned int cksum;
+
+  sprintf(msg, "N0TI\t%02x\t%02x", dest, src);
+  //sprintf(msg, "N0QI\t%04x", dest);
+
+  for (int i=0; i< strlen(msg); i++){
+    sum += msg[i];
+
+    sprintf(str, "%d/%x ", msg[i], msg[i]);
+    Serial.print(str);
+  }
+  
+  cksum = 0x100 - (sum % 0x100);
+
+  sprintf(str, " = %d/%x, cksum = %d/%x", sum,sum, cksum,cksum);
+  Serial.println(str);
+
+  sprintf (&msg[strlen(msg)], "%02x", cksum);   // concat ascii of hex cksum 
+
+  sprintf(str, "Sending ... %s ... To %d.%d.%d.%d:%u", msg, ip[0], ip[1], ip[2], ip[3], port);
+  Serial.println(str);
+
+  if (client.connect(ip, port)) {
+    Serial.println("... connected ...");
+    Serial.write(msg, strlen(msg));
+    client.write(0x01);                       // SOH
+    client.write(msg, strlen(msg));
+    client.write(0x04);                       // EOT
+    Serial.println(" ... sent.\n\n");
+    
+//    for (int i=0; i<3; i++){
+//      while (client.available()) {
+//        char c = client.read();
+//        Serial.print(c);
+//      }
+//      delay(1000);       // wait 0.1 sec
+//    }
+//    Serial.println(" ...bailing on ACK.");
+    
+    client.stop();
+  }
+  else{
+        // if you didn't get a connection to the server:
+    Serial.println("... connection failed.");
+    return false;
+  }
+  
+  return true;
+}
+
+
 
 boolean sameIP(IPAddress ip1, IPAddress ip2)
 {
+  return false;
+  
   Serial.println("sameIP comparing");
   Serial.print(ip1);
   Serial.print(ip2);
