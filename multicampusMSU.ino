@@ -101,9 +101,19 @@ void loop() {
     unsigned char val=0;
     pinMode(pin, INPUT);           // set pin to input
     digitalWrite(pin, HIGH);       // turn on pullup resistor
+
+
     
     val = digitalRead(pin);
-    if (val==1){
+
+    //Serial.print("(read pin ");
+    //Serial.print(pin);
+    //Serial.print(val);
+
+    //delay(1000);
+
+    
+    if (val==0){
       button=pin-1;   // button should be 1-6
       break;
     }
