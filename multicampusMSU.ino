@@ -112,7 +112,7 @@ void loop() {
   if (button !=0 && (last_button != button)){      // Don't repeat (button stays pushed)
 
 #if DEBUG_BUTTONS   
-    Serial.print("button=");
+    Serial.print("button pressed=");
     Serial.print(button);
     Serial.println("");
 #endif
