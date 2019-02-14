@@ -87,8 +87,8 @@ void setup() {
 
 void loop() {
 
-  static unsigned int last_button = 0;
   static boolean got_ack = false;
+  static boolean gpioReset = true;
   unsigned int button = 0;
   
         //
@@ -102,25 +102,18 @@ void loop() {
     pinMode(pin, INPUT);           // set pin to input
     digitalWrite(pin, HIGH);       // turn on pullup resistor
 
-
-    
     val = digitalRead(pin);
 
-    //Serial.print("(read pin ");
-    //Serial.print(pin);
-    //Serial.print(val);
-
-    //delay(1000);
-
-    
     if (val==0){
       button=pin-1;   // button should be 1-6
       break;
     }
   }
 
-  if (button !=0 && (last_button != button)){      // Don't repeat (button stays pushed)
+  if (!button)
+    gpioReset=true;
 
+  if (button && gpioReset){     
 #if DEBUG_BUTTONS   
     Serial.print("button pressed=");   // button should be 1-6
     Serial.print(button);
@@ -128,10 +121,11 @@ void loop() {
 #endif
                             // Switch local NPCC router to show remote's router.
     got_ack = sendLRCPacket (platinumIp, platinumPort, Buttons[button-1].platinumIn, Buttons[button-1].platinumOut);   // button should be 1-6
-  
-    last_button = button;     // Only send message once.
+
+    gpioReset=false;    // don't accept input until see all GPIO clear
     
-  } // end if ((last_button != button)){ 
+  }
+  
   
 }
 
