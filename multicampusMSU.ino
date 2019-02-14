@@ -95,6 +95,7 @@ void loop() {
         // Read GPI and interpret which button was pushed (Arduino pins 2-11)
         //
   button = 0;
+  
   for (int pin=GPI_LOW_PIN; pin<(GPI_LOW_PIN +GPI_NUM_PINS) ; pin++)
   {
     unsigned char val=0;
@@ -108,36 +109,15 @@ void loop() {
     }
   }
 
-  if ((last_button != button)){      // Don't repeat (button stays pushed)
-    int row;
-    
-    row = button2row(button);
+  if (button !=0 && (last_button != button)){      // Don't repeat (button stays pushed)
 
-#if DEBUG_BUTTONS
-    Serial.print("---------------------------------\nbutton=");
-    Serial.println(button);    
-    Serial.print("row=");
-    Serial.print(row);
+#if DEBUG_BUTTONS   
+    Serial.print("button=");
+    Serial.print(button);
     Serial.println("");
 #endif
-    
-    if (row == -1){        // button number out of bounds.
-      delay(300);
-      return;
-    }
-    
-    switch (Buttons[row].remote_protocol){            // Switch to desired source on remote router
-      
-      case GVG7000:                                   // SWP-08/GVG7000 only if if row has info
-        got_ack = send7000Packet (Buttons[row].ultirxIp, Buttons[row].ultirxPort, Buttons[row].ultirxIn, Buttons[row].ultirxOut);
-        break;
-
-      case LRC:                                       // Send LRC packet
-        got_ack = sendLRCPacket (Buttons[row].ultirxIp, Buttons[row].ultirxPort, Buttons[row].ultirxIn, Buttons[row].ultirxOut);
-        break;
-    }
                             // Switch local NPCC router to show remote's router.
-    got_ack = sendLRCPacket (platinumIp, platinumPort, Buttons[row].platinumIn, Buttons[row].platinumOut);
+    got_ack = sendLRCPacket (platinumIp, platinumPort, Buttons[button-1].platinumIn, Buttons[button-1].platinumOut);
   
     last_button = button;     // Only send message once.
     
