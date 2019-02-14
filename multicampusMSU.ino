@@ -87,7 +87,7 @@ void setup() {
 
 void loop() {
 
-  static unsigned int last_button = -1;
+  static unsigned int last_button = 0;
   static boolean got_ack = false;
   unsigned int button = 0;
   
@@ -104,7 +104,7 @@ void loop() {
     
     val = digitalRead(pin);
     if (val==1){
-      button=pin-1;
+      button=pin-1;   // button should be 1-6
       break;
     }
   }
@@ -112,12 +112,12 @@ void loop() {
   if (button !=0 && (last_button != button)){      // Don't repeat (button stays pushed)
 
 #if DEBUG_BUTTONS   
-    Serial.print("button pressed=");
+    Serial.print("button pressed=");   // button should be 1-6
     Serial.print(button);
     Serial.println("");
 #endif
                             // Switch local NPCC router to show remote's router.
-    got_ack = sendLRCPacket (platinumIp, platinumPort, Buttons[button-1].platinumIn, Buttons[button-1].platinumOut);
+    got_ack = sendLRCPacket (platinumIp, platinumPort, Buttons[button-1].platinumIn, Buttons[button-1].platinumOut);   // button should be 1-6
   
     last_button = button;     // Only send message once.
     
