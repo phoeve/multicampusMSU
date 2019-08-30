@@ -1,10 +1,10 @@
-//
+
 #include <SPI.h>
 #include <Ethernet.h>
 
 //  You can turn console messages off to improve performance
 #define CONSOLE 1
-#define DEBUG_BUTTONS 0
+#define DEBUG_BUTTONS 1
 
 #define LOCAL   01
 #define LRC     10
@@ -20,15 +20,15 @@ struct route
   unsigned int    ultirxPort;  
   byte            remote_protocol;
 } Buttons[] = {
-                {  1,   0,   0,  33,  26, 0, 0, LOCAL },   // NPCC
-                {  2,   0,   0,  34,  26, 0, 0, LOCAL },
-                {  3,   0,   0,  35,  26, 0, 0, LOCAL },
-                {  4,   0,   0,  39,  26, 0, 0, LOCAL },
-                {  5,   0,   0,  40,  26, 0, 0, LOCAL },
-                {  6,   0,   0,  43,  26, 0, 0, LOCAL },
-                {  7,   0,   0,  44,  26, 0, 0, LOCAL },
-                {  8,   0,   0,  45,  26, 0, 0, LOCAL },
-                { 10,   0,   0,  42,  26, 0, 0, LOCAL },
+                {  1,   0,   0,  59,  64, 0, 0, LOCAL },   // NPCC
+                {  2,   0,   0,  60,  64, 0, 0, LOCAL },
+                {  3,   0,   0,  61,  64, 0, 0, LOCAL },
+                {  4,   0,   0,  62,  64, 0, 0, LOCAL },
+                {  5,   0,   0,  63,  64, 0, 0, LOCAL },
+                {  6,   0,   0,  64,  64, 0, 0, LOCAL },
+                {  7,   0,   0,  44,  64, 0, 0, LOCAL },
+                {  8,   0,   0,  45,  64, 0, 0, LOCAL },
+                { 10,   0,   0,  42,  64, 0, 0, LOCAL },
 
                 { 11,  32,  26, 112,  26, 172,17,3,137, 12345, GVG7000 },   // BC
                 { 12,  33,  26, 112,  26, 172,17,3,137, 12345, GVG7000 },
@@ -47,23 +47,23 @@ struct route
                 {0,0,0,0,0,0,0,0,0,0}   // Table termintor
 };
 
-byte          platinumIp[] = {172,26,3,161};    // Local NPCC router
+byte          platinumIp[] = {10,2,43,161};    // Local NPCC router
 unsigned int  platinumPort = 52116;
 
 
 #define GPI_PIN_ON    HIGH             // If voltage is HIGH, the dip switch is in the ON position. 
 #define GPI_LOW_PIN   2
-#define GPI_NUM_PINS  7
+#define GPI_NUM_PINS  6
 
 // MAC address 
 byte MyMac[] = {0xDE, 0xAD, 0xBE, 0xEF, 0xFE, 0xED};
-IPAddress MyIP(172, 16, 3, 183);
+IPAddress MyIP(10, 2, 43, 183);
 // the dns server ip
 IPAddress dnsServer(10, 16, 16, 10);
 // the router's gateway address:
-IPAddress gateway(172, 16, 1, 254);
+IPAddress gateway(10, 2, 43, 254);
 // the subnet:
-IPAddress subnet(255, 255, 0, 0);
+IPAddress subnet(255, 255, 255, 0);
 
 
 
@@ -87,72 +87,50 @@ void setup() {
 
 void loop() {
 
-  static unsigned int last_button = -1;
   static boolean got_ack = false;
+  static boolean gpioReset = true;
   unsigned int button = 0;
   
         //
         // Read GPI and interpret which button was pushed (Arduino pins 2-11)
         //
   button = 0;
+  
   for (int pin=GPI_LOW_PIN; pin<(GPI_LOW_PIN +GPI_NUM_PINS) ; pin++)
   {
     unsigned char val=0;
     pinMode(pin, INPUT);           // set pin to input
     digitalWrite(pin, HIGH);       // turn on pullup resistor
-    
+
     val = digitalRead(pin);
-    
-#if DEBUG_BUTTONS
-    Serial.print(val);
-#endif
 
-    if (val==GPI_PIN_ON){
-      bitSet(button, pin-2);  
-    } 
+    if (val==0){
+      button=pin-1;   // button should be 1-6
+      break;
+    }
   }
-  button++;
 
-  if ((last_button != button)){      // Don't repeat (button stays pushed)
-    int row;
-    
-    row = button2row(button);
+  if (!button)
+    gpioReset=true;
 
-#if DEBUG_BUTTONS
-    Serial.print("---------------------------------\nbutton=");
-    Serial.println(button);    
-    Serial.print("row=");
-    Serial.print(row);
+  if (button && gpioReset){     
+#if DEBUG_BUTTONS   
+    Serial.print("button pressed=");   // button should be 1-6
+    Serial.print(button);
     Serial.println("");
 #endif
-    
-    if (row == -1){        // button number out of bounds.
-      delay(300);
-      return;
-    }
-    
-    switch (Buttons[row].remote_protocol){            // Switch to desired source on remote router
-      
-      case GVG7000:                                   // SWP-08/GVG7000 only if if row has info
-        got_ack = send7000Packet (Buttons[row].ultirxIp, Buttons[row].ultirxPort, Buttons[row].ultirxIn, Buttons[row].ultirxOut);
-        break;
-
-      case LRC:                                       // Send LRC packet
-        got_ack = sendLRCPacket (Buttons[row].ultirxIp, Buttons[row].ultirxPort, Buttons[row].ultirxIn, Buttons[row].ultirxOut);
-        break;
-    }
                             // Switch local NPCC router to show remote's router.
-    got_ack = sendLRCPacket (platinumIp, platinumPort, Buttons[row].platinumIn, Buttons[row].platinumOut);
-  
-    last_button = button;     // Only send message once.
+    got_ack = sendLRCPacket (platinumIp, platinumPort, Buttons[button-1].platinumIn, Buttons[button-1].platinumOut);   // button should be 1-6
+
+    gpioReset=false;    // don't accept input until see all GPIO clear
     
-  } // end if ((last_button != button)){ 
+  }
+  
   
 }
 
 
 //  ~XPOINT:S${SAT 1};D${MON 6}\
-
 #define LRC_OPEN_FLAG "~"
 #define LRC_CLOSE_FLAG "\\"   // really just single slash - gotta escape for compiler.
 
@@ -264,4 +242,3 @@ boolean sameIP(IPAddress ip1, IPAddress ip2)
 
   return true;
 }
-
